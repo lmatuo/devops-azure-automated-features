@@ -1,0 +1,18 @@
+variables:
+  # debug mode
+  - name: system.debug
+    value: true
+
+  # agent infos
+  - name: agent-name
+    value: '$(Agent.Name)'
+  - name: agent-machine-name
+    value: '$(Agent.MachineName)'
+  - name: agent-os
+    value: '$(Agent.OS)'
+
+  # storage artifact name
+  - name: storage-artifact
+    value: 'storageArtifact'
+  - name: storage-artifact-type
+    value: 'current'

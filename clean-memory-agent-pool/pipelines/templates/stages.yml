@@ -1,0 +1,102 @@
+stages:
+  - stage: agentCheckStage
+    displayName: 'Check Agent Information Stage'
+    jobs:
+      - job: agentCheckJob
+        displayName: 'Check Agent Details'
+        steps:
+          # Retrieve and display agent details such as name, machine, and OS
+          - script: |
+              echo "Checking agent details..."
+              echo "Agent Name: $(agent-name)"
+              echo "Agent Machine Name: $(agent-machine-name)"
+              echo "Agent OS: $(agent-os)"
+              echo "##vso[task.setvariable variable=agentName]$(agent-name)"
+              echo "##vso[task.setvariable variable=agentOS]|$(agent-os)"
+            displayName: 'Get Agent Information'
+
+  - stage: storageStage
+    displayName: 'Check Initial Storage Stage'
+    jobs:
+      - job: storageJob
+        displayName: 'Check Disk Space'
+        steps:
+          # Check and save initial disk storage usage
+          - script: |
+              echo "Checking initial disk storage on the agent..."
+              df -h | tee initial_storage.txt  # Display and save disk usage to a file
+              initial_usage=$(df -BM / | grep / | awk '{print $4}' | sed 's/M//')  # Capture available space in MB
+              echo "##vso[task.setvariable variable=initialStorage]$initial_usage"
+            displayName: 'Check Disk Usage'
+
+          # Publish the initial storage usage file as an artifact
+          - publish: initial_storage.txt
+            artifact: storageArtifact
+            displayName: 'Publish Storage Artifact'
+
+  - stage: processesStage
+    displayName: 'Check Active Processes Stage'
+    dependsOn: storageStage
+    jobs:
+      - job: processesJob
+        displayName: 'List Active Processes'
+        steps:
+          # List all currently active processes on the agent
+          - script: |
+              echo "Listing active processes on the agent..."
+              ps aux  # List all active processes
+            displayName: 'Check Active Processes'
+
+  - stage: cleanStage
+    displayName: 'Clean Stage'
+    condition: succeeded('processesStage')
+    jobs:
+      - job: cleanJob
+        displayName: 'Clean Up'
+        steps:
+          # Remove unused packages to free up disk space
+          - script: |
+              echo "Removing unnecessary packages..."
+              sudo apt-get autoremove -y
+            displayName: 'Remove Unused Packages'
+
+          # Clean temporary files from the system
+          - script: |
+              echo "Cleaning temporary files..."
+              sudo rm -rf /tmp/*
+            displayName: 'Clean Temporary Files'
+
+  - stage: finalStage
+    displayName: 'Final Stage'
+    condition: succeeded('cleanStage')
+    jobs:
+      - job: finalJob
+        displayName: 'Final Checks and Comparison'
+        steps:
+          # Download the previously stored storage artifact for comparison
+          - download: $(storage-artifact-type)
+            artifact: $(storage-artifact)
+            displayName: 'Download Storage Artifact'
+
+          # Compare disk storage before and after cleanup
+          - script: |
+              echo "Checking agent pool storage after cleanup..."
+              
+              # Extract the initial available storage value
+              initial_usage=$(grep -E ' /$' $(Pipeline.Workspace)/storageArtifact/initial_storage.txt | awk '{print $4}' | sed 's/[GM]//')
+              final_usage=$(df -BM / | grep -E ' /$' | awk '{print $4}' | sed 's/M//')
+
+              echo "Initial available storage: ${initial_usage} GB"
+              echo "Final available storage: ${final_usage} MB"
+
+              # Convert initial storage from GB to MB for consistent comparison
+              initial_usage_mb=$((initial_usage * 1024))
+              difference=$(($final_usage - $initial_usage_mb))
+              
+              echo "Storage difference after cleanup: ${difference} MB"
+            displayName: 'Compare Storage Before and After Cleanup'
+
+          # Display a final message indicating pipeline completion
+          - script: |
+              echo "Pipeline completed!"
+            displayName: 'Final Message'

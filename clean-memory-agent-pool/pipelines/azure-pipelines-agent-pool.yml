@@ -1,0 +1,19 @@
+trigger:
+  - main #⚠️#
+
+schedules:
+  - cron: "0 18 * * 5"
+    displayName: "Run every Friday at 18:00 UTC"
+    branches:
+      include:
+        - main #⚠️#
+    always: true
+
+pool:
+  vmImage: ubuntu-22.04  #⚠️#
+
+variables:
+  - template: templates/vars.yml
+
+stages:
+  - template: templates/stages.yml
