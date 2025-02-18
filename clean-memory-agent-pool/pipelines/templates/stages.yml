@@ -74,7 +74,7 @@ stages:
         displayName: 'Final Checks and Comparison'
         steps:
           # Download the previously stored storage artifact for comparison
-          - download: $(storage-artifact-type)
+          - download: current
             artifact: $(storage-artifact)
             displayName: 'Download Storage Artifact'
 
@@ -82,7 +82,7 @@ stages:
           - script: |
               echo "Checking agent pool storage after cleanup..."
               
-              # Extract the initial available storage value
+              # Filter only the storage value for the root ("/") file system
               initial_usage=$(grep -E ' /$' $(Pipeline.Workspace)/storageArtifact/initial_storage.txt | awk '{print $4}' | sed 's/[GM]//')
               final_usage=$(df -BM / | grep -E ' /$' | awk '{print $4}' | sed 's/M//')
 

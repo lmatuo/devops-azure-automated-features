@@ -14,5 +14,3 @@ variables:
   # storage artifact name
   - name: storage-artifact
     value: 'storageArtifact'
-  - name: storage-artifact-type
-    value: 'current'
